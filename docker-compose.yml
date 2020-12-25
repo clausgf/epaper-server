@@ -1,0 +1,40 @@
+version: "3"
+
+services:
+  redis:
+    image: redis:alpine
+    restart: always
+# keep redis internal
+#    ports: 
+#      - 6379:6379
+
+  # redis commander is useful for debugging and not needed otherwise
+  # Comment out the following section for production!
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    depends_on:
+      - redis
+    restart: always
+    environment:
+      - REDIS_HOSTS=local:redis:6379
+#      - HTTP_USER=root
+#      - HTTP_PASSWORD=qwerty
+    ports:
+      - 9831:8081
+
+  web:
+    build: .
+    depends_on:
+      - redis
+    restart: always
+    environment:
+      - PYTHONDONTWRITEBYTECODE=1
+      - PYTHONUNBUFFERED=1
+      - DEBUG=1
+      - LOG_LEVEL=INFO
+      - HOST=0.0.0.0
+      - PORT=8080
+    volumes:
+      - .:/code
+    ports:
+      - "9830:8080"

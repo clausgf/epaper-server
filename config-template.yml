@@ -1,0 +1,69 @@
+default_settings:
+    locale: de_DE.utf8
+    timezone: Europe/Berlin
+    units: metric
+    debug: False
+    font_path: "backend/resources/fonts"
+    icon_path: "backend/resources/icons"
+    font: ["Roboto-Regular.ttf", 16]
+    client_update_delay: 30
+
+datasources:
+    weather_bs:
+        class: Weather
+        max_age: 3600
+        api_key: dc7andsoon
+        city_id: '2945024'
+        lat: 52.123456
+        lon: 10.123456
+    corona_bs:
+        class: WebScraper
+        max_age: 14400
+        url: "https://www.braunschweig.de/aktuell/aktuelle-informationen.php#Aktuelle_Zahlen"
+        find_expressions:
+            - "aktuell (?P<current>\\d+) Personen"
+            - "in Braunschweig (?P<deaths>\\d+) Todesfälle"
+    corona_meppen:
+        class: WebScraper
+        max_age: 14400
+        url: "https://www.emsland.de/buerger-behoerde/aktuell/coronavirus/fallzahlen-den-emslaendischen-kommunen.html"
+        find_expressions: ["<p>Stadt Meppen</p>[^0-9]*?\\d+[^0-9]*?\\d+[^0-9]*?(?P<deaths>\\d+)[^0-9]*?(?P<current>\\d+)"]
+
+displays:
+    std_weather_43bw:
+        size: [400, 300]
+        bits_per_pixel: 1
+        update_interval: 600
+        widgets:
+        - class: Date
+          position: [0, 0]
+          size: [400, 50]
+          font: ["Ubuntu-Regular.ttf", 32]
+          format: EEEE, dd.MM.yyyy
+        - class: WeatherNow
+          position: [0, 50]
+          size: [330, 94]
+          datasource: weather_bs
+        - class: WeatherForecast
+          position: [0, 130]
+          size: [400, 84]
+          datasource: weather_bs
+        - class: Text
+          position: [330, 50]
+          size: [70, 16]
+          datasource: corona_bs
+          format: "BS {current}"
+          font: ["Ubuntu-Regular.ttf", 14]
+        - class: Text
+          position: [330, 66]
+          size: [70, 16]
+          datasource: corona_meppen
+          format: "MEP {current}"
+          font: ["Ubuntu-Regular.ttf", 14]
+        - class: WeatherTemperature
+          position: [0, 220]
+          size: [400, 80]
+          datasource: weather_bs
+
+aliases:
+    hallway: std_weather_43bw
