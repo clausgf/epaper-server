@@ -1,16 +1,14 @@
 Epaper-Server
 =============
 
-TODO:
+This is a companion project to  [epaper-esp32](https://github.com/clausgf/epaper-esp32) project.
+
+### TODO
 - example image
-- weather icons: get new set of licensed icons mentioning source
 - web endpoint?!
 - copyright info in each file?
+- endpoints/openapi doc
 
-This project 
-- Endpoints
-
-An epaper display can be realized based on the related [epaper-esp32]() project.
 
 Installation
 ------------
@@ -30,4 +28,7 @@ Installation
 
 Credits
 -------
-This project is strongly inspired by https://github.com/ugomeda/esp32-epaper-display by github user ugomeda.
+- This project is strongly inspired by https://github.com/ugomeda/esp32-epaper-display by github user ugomeda.
+- SVG weather icons are from https://github.com/erikflowers/weather-icons
+- PNG conversion from the https://github.com/ugomeda/esp32-epaper-display project
+- Further references are found in the source code.
