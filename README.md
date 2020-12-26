@@ -1,13 +1,11 @@
 Epaper-Server
 =============
 
-This is a companion project to  [epaper-esp32](https://github.com/clausgf/epaper-esp32) project.
+This is a companion to the epaper display driver [epaper-esp32](https://github.com/clausgf/epaper-esp32) project. Realized as a FastAPI based web server running in a docker container, it provides images and management for epaper displays.
 
-### TODO
-- example image
-- web endpoint?!
-- copyright info in each file?
-- endpoints/openapi doc
+Images for the epaper displays are automatically updated. They can be freely configured with contents from the web. In addition to weather information which can be displayed in various forms, rendering of information collected from arbitrary web pages is supported. Together with epaper-esp32, this project forms a complete epaper display solution.
+
+![](doc/epaper-400x300.png)
 
 
 Installation
@@ -24,6 +22,14 @@ Installation
    - `docker-compose logs` shows logs
    - `docker-compose down`stops the service
 4. It shouldn't be too difficult to add custom widgets. Don't forget to add them to `__init__.py`.
+
+
+Technical notes
+---------------
+By default, epaper-server supports these endpoints:
+- http://localhost:9830/docs OpenAPI/Swagger docs
+- http://localhost:9830/api/displays and links therein: Info about displays
+- Optional redis-commander for debugging, http://localhost:9831 (not for production)
 
 
 Credits

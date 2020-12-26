@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Request, Depends
+from fastapi.staticfiles import StaticFiles
 import asyncio
 import aioredis
 import os
@@ -17,6 +18,8 @@ from .core import datasources
 from .routers import router
 
 app = FastAPI(title='EPaper-Server')
+app.include_router(router)
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
 class Context:

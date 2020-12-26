@@ -138,4 +138,5 @@ dmypy.json
 cython_debug/
 
 # sensitive application data
+.DS_Store
 config.yml
