@@ -48,6 +48,7 @@ class Context:
             self.displays[display_id] = Display(redis, display_id, default_settings, display_config, self.datasources)
 
         for alias_id, alias_display_id in config["aliases"].items():
+            self.displays[alias_display_id].aliases.append(alias_id)
             self.aliases[alias_id] = alias_display_id
 
 

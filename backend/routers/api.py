@@ -41,6 +41,7 @@ async def get_display(
 ):
     """
     Get info for the given display like
+    - aliases
     - size, bits per pixel, rotation
     - update cycle (interval, last update),
     - version of the current image and 
@@ -53,7 +54,7 @@ async def get_display(
         logger.info(f"Display/alias {id} not found - returning 404")
         raise HTTPException(status_code=404, detail="Display/alias not found")
 
-    display_kv = { key: display.__dict__[key] for key in ["id", "size", "bits_per_pixel", "update_interval", "client_update_delay", "rotation"]}
+    display_kv = { key: display.__dict__[key] for key in ["id", "aliases", "size", "bits_per_pixel", "update_interval", "client_update_delay", "rotation"]}
     display_kv.update({
         "version": await display.get_version(),
         "last_update": await display.get_last_update(),
@@ -72,9 +73,9 @@ async def get_display(
     summary="Get the current image for a display",
     response_description="PNG image formatted and optimized for the display"
 )
-async def get_display_image(request: Request, id: str, response: Response, etag: Optional[str] = Header(None)):
+async def get_display_image(request: Request, id: str, response: Response, if_none_match: Optional[str] = Header(None)):
     # determine rendering with optional alias lookup
-    logger.info(f"GET /api/displays/{id}/image with ETag={etag}")
+    logger.info(f"GET /api/displays/{id}/image with If-None-Match={if_none_match}")
     display = get_display_by_id(request.app.context, id)
     if display is None:
         logger.info(f"Display/alias {id} not found - returning 404")
@@ -93,7 +94,7 @@ async def get_display_image(request: Request, id: str, response: Response, etag:
     }
 
     # Return 304 if content did not change
-    if etag != None and etag == version:
+    if if_none_match != None and if_none_match == version:
         return Response("", status.HTTP_304_NOT_MODIFIED, headers=headers)
 
     # return response

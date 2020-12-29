@@ -20,6 +20,7 @@ class Display(BaseRedis):
             return config.get(key, default_settings.get(key, default))
 
         super().__init__(redis_pool=redis_pool, base_key="display", id=id)
+        self.aliases = []
         self.config = config
         self.size = tuple(config["size"])
         self.bits_per_pixel = config["bits_per_pixel"]

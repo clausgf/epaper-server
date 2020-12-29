@@ -30,7 +30,7 @@ datasources:
         find_expressions: ["<p>Stadt Meppen</p>[^0-9]*?\\d+[^0-9]*?\\d+[^0-9]*?(?P<deaths>\\d+)[^0-9]*?(?P<current>\\d+)"]
 
 displays:
-    std_weather_43bw:
+    epaper_43bw:
         size: [400, 300]
         bits_per_pixel: 1
         update_interval: 600
@@ -66,4 +66,4 @@ displays:
           datasource: weather_bs
 
 aliases:
-    hallway: std_weather_43bw
+    hallway: epaper_43bw
