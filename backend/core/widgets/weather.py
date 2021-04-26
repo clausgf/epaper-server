@@ -55,6 +55,7 @@ def _get_font(ctx, section):
 
 IMAGE_HEIGHT = 94
 
+
 class WeatherNowWidget(BaseWidget):
     def __init__(self, redis, id, config, datasource):
         super().__init__(redis, id, config, datasource)
@@ -102,6 +103,7 @@ class WeatherNowWidget(BaseWidget):
 MIN_WIDTH = 80
 SMALL_IMAGE_HEIGHT = 47
 
+
 class WeatherForecastWidget(BaseWidget):
     def __init__(self, redis, id, config, datasource):
         super().__init__(redis, id, config, datasource)
@@ -145,6 +147,34 @@ class WeatherForecastWidget(BaseWidget):
                 _get_font(ctx, "next"),
             )
 
+
+class WeatherPrecipitationWidget(BaseWidget):
+    def __init__(self, redis, id, config, datasources):
+        super().__init__(redis, id, config, datasources)
+        # Config
+        self.lang = config["locale"].split("_")[0]
+        self.timezone = get_timezone(config["timezone"])
+
+    async def draw(self, ctx):
+        await super().draw(ctx)
+        onecall = await self.datasource.get_data()
+        precipitation = [(datetime.fromtimestamp(f['dt'], pytz.UTC).astimezone(self.timezone), f['precipitation']) for f in onecall['minutely']]
+        fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(self.size[0]/100.0, self.size[1]/100.0), dpi=100)
+        ax.set_ylim(0,10)
+        ax.plot(*zip(*precipitation), 'k')
+        ax.grid()
+        ax.tick_params(direction='in')
+        xfmt = md.DateFormatter('%H:%M')
+        ax.xaxis.set_major_formatter(xfmt)
+        ax.set_xticks(ax.get_xticks()[::2])
+        fig.tight_layout()
+        fig.subplots_adjust(bottom=0.24)
+        fig.canvas.draw()
+        img = PIL.Image.frombytes('RGB', fig.canvas.get_width_height(),fig.canvas.tostring_rgb())
+        ctx.img.paste(img, self.position)
+        plt.close()
+
+
 class WeatherTemperatureWidget(BaseWidget):
     def __init__(self, redis, id, config, datasource):
         super().__init__(redis, id, config, datasource)
@@ -156,7 +186,10 @@ class WeatherTemperatureWidget(BaseWidget):
         await super().draw(ctx)
         onecall = await self.datasource.get_data()
         temp = [(datetime.fromtimestamp(f['dt'], pytz.UTC).astimezone(self.timezone), f['temp']) for f in onecall['hourly']]
+        pressure = [(datetime.fromtimestamp(f['dt'], pytz.UTC).astimezone(self.timezone), f['pressure']) for f in onecall['hourly']]
+        humidity = [(datetime.fromtimestamp(f['dt'], pytz.UTC).astimezone(self.timezone), f['humidity']) for f in onecall['hourly']]
         fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(self.size[0]/100.0, self.size[1]/100.0), dpi=100)
+        ax.set_ylim(-10,40)
         ax.plot(*zip(*temp), 'k')
         ax.grid()
         ax.tick_params(direction='in')

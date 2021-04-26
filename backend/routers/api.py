@@ -1,5 +1,6 @@
 from typing import Optional
 import datetime
+import json
 from loguru import logger
 
 import uvicorn
@@ -9,6 +10,8 @@ router = APIRouter()
 
 MINIMUM_WAITING_TIME = 30
 
+
+# *** Display management *****************************************************
 
 def get_display_by_id(context, id):
     display = context.displays.get(id, None)
@@ -100,3 +103,82 @@ async def get_display_image(request: Request, id: str, response: Response, if_no
     # return response
     image_buffer = await display.get_image_buffer()
     return Response(content=image_buffer, media_type="image/png", headers=headers)
+
+
+# *** Device management ******************************************************
+
+async def get_device_ids(redis):
+    ids = set()
+    async for key in redis.iscan(match="devices:*"):
+        key = str(key)
+        id = str(key).split(":")[1]
+        print(key, " -> ", id)
+        ids.add(id)
+    return ids
+
+async def get_device_state(redis, id):
+    key = f"devices:{id}:state"
+    s = await redis.get(key, encoding='utf-8')
+    data = json.loads(s) if s else None
+    return data
+
+async def set_device_state(redis, id, value):
+    # TODO set expiration to 1 day
+    key = f"devices:{id}:state"
+    #print(f"Redis set {key} -> {value}")
+    await redis.set(key, value)
+
+
+@router.get(
+    "/devices",
+    summary="Get all device_ids",
+    response_description="JSON dictionary containing links to available devices"
+)
+async def get_devices(request: Request):
+    ctx = request.app.context
+    ids = await get_device_ids(ctx.redis)
+    links = { id: f"/api/devices/{ids}" for id in ids }
+    return { "links": links }
+
+
+@router.get(
+    "/devices/{id}",
+    summary="Get general info and current data for a device",
+    response_description="JSON dictionary containing the desired information."
+)
+async def get_device(
+    request: Request, 
+    id: str = Path(..., title="Display_id or alias")
+):
+    """
+    Get the latest info posted by a device.
+    """
+    ctx = request.app.context
+    state = await get_device_state(ctx.redis, id)
+    if state is None:
+        logger.info(f"Device {id} not found - returning 404")
+        raise HTTPException(status_code=404, detail="Device not found")
+    return state
+
+
+@router.post(
+    "/devices/{id}",
+    summary="Post the state of the give device",
+)
+async def post_device(request: Request, id: str):
+    ctx = request.app.context
+    state = await request.body()
+    state_dict = json.loads(state)
+    state_dict['received_timestamp'] = datetime.datetime.now().isoformat()
+    state = json.dumps(state_dict)
+
+    # publish state to REDIS
+    await set_device_state(ctx.redis, id, state)
+
+    # TODO publish state to MQTT
+    if ctx.mqtt_client and ctx.mqtt_status_topic:
+        topic = ctx.mqtt_status_topic.format( id = id )
+        logger.info(f"Publishing status for device {id} to topic {topic}")
+        ctx.mqtt_client.publish(topic, payload=state, qos=0, retain=False)
+
+    return ""

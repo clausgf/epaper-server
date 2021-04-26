@@ -2,6 +2,7 @@ from fastapi import FastAPI, Request, Depends
 from fastapi.staticfiles import StaticFiles
 import asyncio
 import aioredis
+import paho.mqtt.client as mqtt
 import os
 import time
 import datetime
@@ -22,6 +23,20 @@ app.include_router(router)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
+def mqtt_on_connect(client, userdata, flags, rc):
+    if rc == 0:
+        logger.info(f"MQTT connected: userdata={userdata} flags={flags} rc={rc}")
+    else:
+        logger.error(f"MQTT connection error: userdata={userdata} flags={flags} rc={rc}")
+
+
+def mqtt_on_disconnect(client, userdata, rc):
+    if rc == 0:
+        logger.info(f"MQTT disconnected: userdata={userdata} rc={rc}")
+    else:
+        logger.error(f"MQTT disconnection error: userdata={userdata} rc={rc}")
+
+
 class Context:
     count = 0
 
@@ -38,6 +53,9 @@ class Context:
 
         default_settings = config["default_settings"]
 
+        self.mqtt_config = config["mqtt"]
+        self.init_mqtt()
+
         for datasource_id, datasource_config in config["datasources"].items():
             datasource_class = getattr(datasources, datasource_config['class'] + 'Datasource')
             datasource_config = {**default_settings, **datasource_config}
@@ -50,6 +68,31 @@ class Context:
         for alias_id, alias_display_id in config["aliases"].items():
             self.displays[alias_display_id].aliases.append(alias_id)
             self.aliases[alias_id] = alias_display_id
+
+
+    def init_mqtt(self):
+        if "host" in self.mqtt_config.keys():
+            client_id = self.mqtt_config.get("client_id", "epaper-server")
+            host      = self.mqtt_config.get("host")
+            port      = self.mqtt_config.get("port", 1883)
+            username  = self.mqtt_config.get("username", None)
+            password  = self.mqtt_config.get("password", None)
+
+            logger.info(f"Connecting MQTT {host}:{port} client_id={client_id} username={username}")
+            self.mqtt_client = mqtt.Client(client_id=client_id, clean_session=True)
+            if username:
+                self.mqtt_client.username_pw_set(username, password=password)
+            self.mqtt_client.connect_async(host, port=port)
+            #self.mqtt_client.enable_logger()
+            self.mqtt_client.on_connect = mqtt_on_connect
+            self.mqtt_client.on_disconnect = mqtt_on_disconnect
+            self.mqtt_client.loop_start()
+
+            self.mqtt_status_topic = self.mqtt_config.get("status_topic")
+
+        else:
+            self.mqtt_client = None
+            self.mqtt_status_topic = None
 
 
 @app.on_event('startup')

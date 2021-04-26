@@ -10,9 +10,8 @@ class DateWidget(BaseWidget):
     def __init__(self, redis, id, config, datasource):
         super().__init__(redis, id, config, datasource)
         self.timezone = timezone(config['timezone'])
-        self.locale = config['locale']
         self.format = config['format']
-        self.font = config['font']
+
 
     async def draw(self, ctx):
         await super().draw(ctx)
@@ -20,4 +19,4 @@ class DateWidget(BaseWidget):
         now = datetime.now(self.timezone)
         text = format_date(now, self.format, locale=self.locale)
         position = ( self.size[0]/2, self.size[1]/2 )
-        ctx.draw_text_centered_xy(position, text, font=font, fill=ctx.FOREGROUND)
+        ctx.draw_text_centered_xy(position, text, font=font, fill=tuple(self.colors[1]))
