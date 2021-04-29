@@ -10,13 +10,13 @@ class DateWidget(BaseWidget):
     def __init__(self, redis, id, config, datasource):
         super().__init__(redis, id, config, datasource)
         self.timezone = timezone(config['timezone'])
-        self.format = config['format']
+        self.date_format = config['date_format']
 
 
     async def draw(self, ctx):
         await super().draw(ctx)
         font = ctx.get_font(self.font[0], self.font[1])
         now = datetime.now(self.timezone)
-        text = format_date(now, self.format, locale=self.locale)
+        text = format_date(now, self.date_format, locale=self.locale)
         position = ( self.size[0]/2, self.size[1]/2 )
         ctx.draw_text_centered_xy(position, text, font=font, fill=tuple(self.colors[1]))

@@ -73,6 +73,16 @@ class DrawingContext:
         return image.size
 
 
+    def draw_line(self, xys, *args, **params):
+        xys = tuple( (self.origin[0] + xy[0], self.origin[1] + xy[1]) for xy in xys )
+        self.draw.line( xys, *args, **params)
+
+
+    def textsize(self, text, font):
+        width, height = self.draw.textsize(text, font)
+        return width, height
+
+
     def draw_text_centered_xy(self, xy, text, font, **params):
         width, height = self.draw.textsize(text, font)
         x,  y  = math.floor(xy[0] - width/2), math.floor(xy[1] - height/2)

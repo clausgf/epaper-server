@@ -23,7 +23,7 @@ class BaseWidget:
         logger.debug(f"Drawing widget type {self.widget_class}::{self.id}@{self.position} size {self.size}")
         ctx.origin = self.position
         p0 = self.position
-        p1 = tuple(sum(x) for x in zip(self.position, self.size))
+        p1 = tuple(sum(x)-1 for x in zip(self.position, self.size))
         ctx.draw.rectangle([p0, p1], fill=tuple(self.colors[0]))
         #ctx.draw.rectangle([p0, p1], outline=(255,0,0))
 

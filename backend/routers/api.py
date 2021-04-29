@@ -87,9 +87,12 @@ async def get_display_image(request: Request, id: str, response: Response, if_no
     # collect new response header fields
     version = await display.get_version()
     next_client_update = await display.get_next_client_update()
-    now = datetime.datetime.now(datetime.timezone.utc)
-    seconds_till_update = (next_client_update - now).total_seconds()
-    max_age = max(MINIMUM_WAITING_TIME, round(seconds_till_update))
+    if next_client_update:
+        now = datetime.datetime.now(datetime.timezone.utc)
+        seconds_till_update = (next_client_update - now).total_seconds()
+        max_age = max(MINIMUM_WAITING_TIME, round(seconds_till_update))
+    else:
+        max_age = MINIMUM_WAITING_TIME
     headers = {
         "ETag": version, 
         "Cache-Control": f"max-age={max_age}"
