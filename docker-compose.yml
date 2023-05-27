@@ -36,5 +36,6 @@ services:
       - PORT=8000
     volumes:
       - .:/code
+      - ./config:/config
     ports:
       - "9830:8000"

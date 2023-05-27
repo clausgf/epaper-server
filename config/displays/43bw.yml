@@ -1,0 +1,27 @@
+size: [400, 300]
+colors: [[255,255,255], [0,0,0]]
+update_interval: 1800
+widgets:
+- class: Date
+  position: [0, 10]
+  size: [400, 50]
+  colors: [[255,255,255], [0,0,0]]
+  font: ["Ubuntu-Regular.ttf", 32]
+- class: WeatherNow
+  position: [0, 50]
+  size: [330, 94]
+  datasource: weather_bs
+- class: WeatherForecast
+  position: [0, 130]
+  size: [400, 84]
+  datasource: weather_bs
+- class: Text
+  position: [310, 50]
+  size: [70, 16]
+  datasource: corona_bs
+  format: "BS {weekIncidence} / {deathsPerWeek} / {deltaCases}"
+  font: ["Ubuntu-Regular.ttf", 14]
+- class: WeatherTemperature
+  position: [0, 220]
+  size: [400, 80]
+  datasource: weather_bs

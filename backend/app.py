@@ -11,7 +11,8 @@ import babel
 from typing import Optional
 from loguru import logger
 
-CONFIG_FN = os.environ.get("EPAPER_CONFIGFILE", 'config.yml')
+CONFIG_DIR = os.environ.get("EPAPER_CONFIGDIR", '/config')
+CONFIG_FN = os.path.join(CONFIG_DIR, 'config.yml')
 REDIS_URL = os.environ.get("EPAPER_REDIS", 'redis://redis')
 
 from .core.display import Display
@@ -55,6 +56,8 @@ class Context:
 
         self.mqtt_config = config["mqtt"]
         self.init_mqtt()
+
+        self.CONFIG_DIR = CONFIG_DIR
 
         for datasource_id, datasource_config in config["datasources"].items():
             datasource_class = getattr(datasources, datasource_config['class'] + 'Datasource')

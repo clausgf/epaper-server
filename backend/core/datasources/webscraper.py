@@ -18,15 +18,20 @@ class WebScraperDatasource(BaseDatasource):
     async def update(self):
         data = {}
         logger.info(f"Updating {self.id} in {self.__class__.__name__}, fetching {self.url}")
-        async with self.session.get(self.url) as response:
-            response_text = await response.text()
+        try:
+            async with self.session.get(self.url) as response:
+                response_text = await response.text()
 
-            for find_expression in self.find_expressions:
-                match = re.search(find_expression, response_text)
-                if match:
-                    data.update(match.groupdict(default={}))
-                else:
-                    logger.info(f"... no match for '{find_expression}'")
+                for find_expression in self.find_expressions:
+                    match = re.search(find_expression, response_text)
+                    if match:
+                        data.update(match.groupdict(default={}))
+                    else:
+                        logger.info(f"... no match for '{find_expression}'")
+        except Exception as e:
+            import traceback
+            logger.error(e)
+            logger.error(traceback.format_exc())
 
         logger.debug(f"... collected data='{data}'")
         await self.set_data(data)

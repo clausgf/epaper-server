@@ -2,6 +2,7 @@ from typing import Optional
 import datetime
 import json
 from loguru import logger
+import os
 
 import uvicorn
 from fastapi import APIRouter, Request, Response, status, Header, HTTPException, Path
@@ -29,7 +30,7 @@ def get_display_by_id(context, id):
 async def get_displays(request: Request):
     ctx = request.app.context
     names = list(ctx.displays.keys()) + list(ctx.aliases.keys())
-    links = { name: f"/api/displays/{name}" for name in names }
+    links = { name: request.url_for("get_display", **{"id": name}) for name in names }
     return { "links": links }
 
 
@@ -49,12 +50,12 @@ async def get_display(
     - update cycle (interval, last update),
     - version of the current image and 
     - a link to the current image.
+
     All this information is related to the current server side image 
     which might or might not be shown on the related display(s) yet.
     """
     display = get_display_by_id(request.app.context, id)
     if display is None:
-        logger.info(f"Display/alias {id} not found - returning 404")
         raise HTTPException(status_code=404, detail="Display/alias not found")
 
     display_kv = { key: display.__dict__[key] for key in ["id", "aliases", "size", "bits_per_pixel", "update_interval", "client_update_delay", "rotation"]}
@@ -65,7 +66,7 @@ async def get_display(
     })
     display_kv.update({
         "links": {
-            "image": f"/api/displays/{id}/image"
+            "image": request.url_for("get_display_image", **{"id": id})
         }
     })
     return display_kv
@@ -81,7 +82,6 @@ async def get_display_image(request: Request, id: str, response: Response, if_no
     logger.info(f"GET /api/displays/{id}/image with If-None-Match={if_none_match}")
     display = get_display_by_id(request.app.context, id)
     if display is None:
-        logger.info(f"Display/alias {id} not found - returning 404")
         raise HTTPException(status_code=404, detail="Display/alias not found")
 
     # collect new response header fields
@@ -119,15 +119,15 @@ async def get_device_ids(redis):
         ids.add(id)
     return ids
 
-async def get_device_state(redis, id):
-    key = f"devices:{id}:state"
+async def get_device_status(redis, id):
+    key = f"devices:{id}:status"
     s = await redis.get(key, encoding='utf-8')
     data = json.loads(s) if s else None
     return data
 
-async def set_device_state(redis, id, value):
+async def set_device_status(redis, id, value):
     # TODO set expiration to 1 day
-    key = f"devices:{id}:state"
+    key = f"devices:{id}:status"
     #print(f"Redis set {key} -> {value}")
     await redis.set(key, value)
 
@@ -140,16 +140,18 @@ async def set_device_state(redis, id, value):
 async def get_devices(request: Request):
     ctx = request.app.context
     ids = await get_device_ids(ctx.redis)
-    links = { id: f"/api/devices/{ids}" for id in ids }
+    links = {
+        id: request.url_for("get_device_status", **{"id": id}) for id in ids
+    }
     return { "links": links }
 
 
 @router.get(
-    "/devices/{id}",
+    "/devices/{id}/status",
     summary="Get general info and current data for a device",
     response_description="JSON dictionary containing the desired information."
 )
-async def get_device(
+async def get_device_status(
     request: Request, 
     id: str = Path(..., title="Display_id or alias")
 ):
@@ -157,31 +159,46 @@ async def get_device(
     Get the latest info posted by a device.
     """
     ctx = request.app.context
-    state = await get_device_state(ctx.redis, id)
-    if state is None:
-        logger.info(f"Device {id} not found - returning 404")
+    status = await get_device_status(ctx.redis, id)
+    if status is None:
         raise HTTPException(status_code=404, detail="Device not found")
-    return state
+    links = { 
+        "config": request.url_for("get_device_config", **{"id": id})
+    }
+    status.update(links)
+    return status
 
 
 @router.post(
-    "/devices/{id}",
+    "/devices/{id}/status",
     summary="Post the state of the give device",
 )
 async def post_device(request: Request, id: str):
     ctx = request.app.context
-    state = await request.body()
-    state_dict = json.loads(state)
-    state_dict['received_timestamp'] = datetime.datetime.now().isoformat()
-    state = json.dumps(state_dict)
+    status = await request.body()
+    status_dict = json.loads(status)
+    status_dict['received_timestamp'] = datetime.datetime.now().isoformat()
+    status = json.dumps(status_dict)
 
     # publish state to REDIS
-    await set_device_state(ctx.redis, id, state)
+    await set_device_status(ctx.redis, id, status)
 
-    # TODO publish state to MQTT
+    # publish state to MQTT
     if ctx.mqtt_client and ctx.mqtt_status_topic:
         topic = ctx.mqtt_status_topic.format( id = id )
         logger.info(f"Publishing status for device {id} to topic {topic}")
-        ctx.mqtt_client.publish(topic, payload=state, qos=0, retain=False)
+        ctx.mqtt_client.publish(topic, payload=status, qos=0, retain=False)
 
     return ""
+
+@router.get(
+    "/devices/{id}/config",
+    summary="Get the device configuration",
+)
+async def get_device_config(request: Request, id: str):
+    ctx = request.app.context
+    fn = os.path.join(ctx.CONFIG_DIR, "devices", f"{id}.json")
+    logger.info(f"Looking for {fn}")
+    if not os.path.isfile(fn):
+        raise HTTPException(status_code=404, detail="Device configuration not found")
+    return FileResponse(fn)

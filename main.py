@@ -57,5 +57,4 @@ if __name__ == "__main__":
         "level": LOG_LEVEL,
     }])
 
-    logger.info(f"Welcome to Epaper-Server. cwd={os.getcwd()}")
     server.run()
