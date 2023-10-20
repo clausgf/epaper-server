@@ -152,7 +152,14 @@ async def cyclic_func():
 ##############################################################################
 
 init_logging(global_settings.log_level)
-app = FastAPI(title='EPaper-Server')
+base_url = global_settings.base_url
+app = FastAPI(
+    title='EPaper-Server', 
+    docs_url=base_url+'/api/docs', 
+    redoc_url=None, 
+    openapi_url=base_url+'/api/openapi.json',
+    # root_path=base_url
+    )
 app.include_router(router)
 asyncio.ensure_future(cyclic_func())
 

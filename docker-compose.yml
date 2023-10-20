@@ -4,23 +4,23 @@ services:
   redis:
     image: redis:alpine
     restart: unless-stopped
-# keep redis internal
-#    ports: 
-#      - 6379:6379
+    # do not publish the redis port to keep it internal
+    # ports: 
+    #   - 6379:6379
 
   # redis commander is useful for debugging and not needed otherwise
-  # Comment out the following section for production!
-  redis-commander:
-    image: rediscommander/redis-commander:latest
-    depends_on:
-      - redis
-    restart: unless-stopped
-    environment:
-      - REDIS_HOSTS=local:redis:6379
-#      - HTTP_USER=root
-#      - HTTP_PASSWORD=qwerty
-    ports:
-      - 127.0.0.1:9839:8081
+  # *** Comment out the following section for production! ***
+  # redis-commander:
+  #   image: rediscommander/redis-commander:latest
+  #   depends_on:
+  #     - redis
+  #   restart: unless-stopped
+  #   environment:
+  #     - REDIS_HOSTS=local:redis:6379
+  #   #  - HTTP_USER=root
+  #   #  - HTTP_PASSWORD=qwerty
+  #   ports:
+  #     - 127.0.0.1:9839:8081
 
   web:
     build: .
@@ -28,14 +28,26 @@ services:
       - redis
     restart: unless-stopped
     environment:
-      - PYTHONDONTWRITEBYTECODE=1
-      - PYTHONUNBUFFERED=1
       - DEBUG=1
       - LOG_LEVEL=INFO
-      - HOST=0.0.0.0
-      - PORT=8000
     volumes:
       - .:/code
       - ./config:/config
-    ports:
-      - "9830:8000"
+
+    # expose the port directly if not using traefik
+    # ports:
+    #   - "9830:8000"
+
+    # traefik configuration
+    labels:
+      - "traefik.enable=true" # enables the service
+      - "traefik.http.routers.epaper.rule=(Host(`garnix`) || Host(`garnix.local`) || Host(`192.168.178.20`)) && PathPrefix(`/epaper`)"
+      #- "traefik.http.routers.nginx.entrypoints=websecure" # if you named your 443 entrypoint differently than webscure, substitute it here!
+      #- "traefik.http.routers.nginx.tls.certresolver=letsencrypt" # if you named your cert resolver differently than letsencrypt, substitute it here!
+    networks:
+      - default
+      - traefik-global-proxy # Traefik network! If you named it differently, substitute it here and below.
+
+networks:
+  traefik-global-proxy:
+    external: true

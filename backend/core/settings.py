@@ -12,6 +12,8 @@ class Settings(BaseSettings):
     font_path: str = "backend/resources/fonts"
     icon_path: str = "backend/resources/icons"
 
+    base_url: str = ""
+
     locale: str = 'de_DE.utf8'
     timezone: str = 'Europe/Berlin'
     units: Literal['metric', 'imperial'] = 'metric'

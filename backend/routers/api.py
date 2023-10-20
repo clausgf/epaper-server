@@ -10,8 +10,8 @@ from ..core.epaper import Epaper
 import uvicorn
 from fastapi import APIRouter, Request, Response, status, Header, HTTPException, Path
 from fastapi.responses import FileResponse
-router = APIRouter()
 
+router = APIRouter()
 
 # *** Display management *****************************************************
 
@@ -19,7 +19,7 @@ def get_display_by_id(context, id: str) -> Optional[Epaper]:
     display = context.epapers.get(id, None)
     if display is None:
         alias_id = context.aliases.get(id, None)
-        display = context.displays.get(alias_id, None)
+        display = context.epapers.get(alias_id, None)
     return display
 
 
