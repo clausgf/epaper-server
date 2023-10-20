@@ -1,7 +1,10 @@
+from typing import Dict, Any
 import aiohttp
 import re
 from loguru import logger
+
 from .base import BaseDatasource
+from ..utils import RedisKeyValueStore
 
 
 BASE_URL = "https://api.openweathermap.org/data/2.5"
@@ -9,20 +12,23 @@ BASE_URL = "https://api.openweathermap.org/data/2.5"
 
 class WebScraperDatasource(BaseDatasource):
 
-    def __init__(self, redis_pool, id, config):
-        super().__init__(redis_pool, id, config)
-        self.url = config.get('url')
-        self.find_expressions = config.get('find_expressions')
+    class Settings(BaseDatasource.Settings):
+        url: str
+        find_expressions: list[str]
+
+    def __init__(self, settings_filename: str, kv_store: RedisKeyValueStore):
+        super().__init__(settings_filename, kv_store)
         self.session = aiohttp.ClientSession(raise_for_status=True)
 
     async def update(self):
         data = {}
-        logger.info(f"Updating {self.id} in {self.__class__.__name__}, fetching {self.url}")
+        url = self.settings.url
+        logger.info(f"Updating {self.id} in {self.__class__.__name__}, fetching {url}")
         try:
-            async with self.session.get(self.url) as response:
+            async with self.session.get(url) as response:
                 response_text = await response.text()
 
-                for find_expression in self.find_expressions:
+                for find_expression in self.settings.find_expressions:
                     match = re.search(find_expression, response_text)
                     if match:
                         data.update(match.groupdict(default={}))

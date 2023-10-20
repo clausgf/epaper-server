@@ -1,27 +1,28 @@
 size: [400, 300]
+bits_per_pixel: 1
 colors: [[255,255,255], [0,0,0]]
-update_interval: 1800
+update_interval_s: 1800
+font: ["Roboto-Regular.ttf", 16]
 widgets:
-- class: Date
+- widget_class: DateWidget
   position: [0, 10]
   size: [400, 50]
   colors: [[255,255,255], [0,0,0]]
   font: ["Ubuntu-Regular.ttf", 32]
-- class: WeatherNow
+- widget_class: WeatherNowWidget
   position: [0, 50]
   size: [330, 94]
-  datasource: weather_bs
-- class: WeatherForecast
+  datasource: ds_weather_bs
+- widget_class: WeatherForecastWidget
   position: [0, 130]
   size: [400, 84]
-  datasource: weather_bs
-- class: Text
+  datasource: ds_weather_bs
+- widget_class: TextWidget
   position: [310, 50]
   size: [70, 16]
-  datasource: corona_bs
-  format: "BS {weekIncidence} / {deathsPerWeek} / {deltaCases}"
+  format: "Testtext"
   font: ["Ubuntu-Regular.ttf", 14]
-- class: WeatherTemperature
+- widget_class: WeatherTemperatureWidget
   position: [0, 220]
   size: [400, 80]
-  datasource: weather_bs
+  datasource: ds_weather_bs

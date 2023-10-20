@@ -1,0 +1,6 @@
+datasource_class: WeatherDatasource
+max_age_s: 3600
+api_key: d17ede45dbac61675fb8639d0250e36d
+city_id: '2945024'
+lat: 52.264365
+lon: 10.540877

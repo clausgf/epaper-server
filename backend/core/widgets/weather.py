@@ -3,9 +3,8 @@
 The drawing code in this widget is heavily based on https://github.com/ugomeda/esp32-epaper-display
 """
 
+from typing import Literal, Optional
 import math
-import requests
-import json
 import pytz
 from datetime import datetime, timedelta
 from babel.dates import format_time, get_timezone
@@ -13,8 +12,10 @@ from loguru import logger
 import matplotlib.pyplot as plt
 import matplotlib.dates as md
 import PIL
-
-from .base import BaseWidget
+from ..settings import global_settings
+from ..datasources.base import BaseDatasource
+from ..drawingcontext import DrawingContext
+from .base import BaseWidget, BaseWidgetSettings
 
 
 WEATHER_CODES_TO_IMAGES = {
@@ -52,24 +53,30 @@ def _get_font(ctx, section):
     f = fonts[section]
     return ctx.get_font(f[0], f[1])
 
+##############################################################################
 
 IMAGE_HEIGHT = 94
 
+class WeatherNowWidgetSettings(BaseWidgetSettings):
+    widget_class: Literal['WeatherNowWidget']
+    datasource: str
 
 class WeatherNowWidget(BaseWidget):
-    def __init__(self, redis, id, config, datasource):
-        super().__init__(redis, id, config, datasource)
-        # Config
-        self.units = config["units"]
-        self.temperature_format = "{:.0f}°F" if self.units == "imperial" else "{:.0f}°C"
+
+    def __init__(self, id: str, settings: WeatherNowWidgetSettings, datasource: Optional[BaseDatasource] = None):
+        if datasource is None:
+            raise ValueError("datasource must be set")
+        super().__init__(id, settings, datasource)
+        self.temperature_format = "{:.0f}°F" if global_settings.units == "imperial" else "{:.0f}°C"
+        self.timezone = get_timezone(global_settings.timezone)
 
     def _wind_to_kn(self, speed):
-        if self.units == "imperial":
+        if global_settings.units == "imperial":
             return speed * 0.868976
         else:
             return speed * 1.94384
 
-    async def draw(self, ctx):
+    async def draw(self, ctx: DrawingContext):
         await super().draw(ctx)
         data = await self.datasource.get_data()
         weather = data["current"]
@@ -100,27 +107,32 @@ class WeatherNowWidget(BaseWidget):
         ctx.draw_text_xy( (IMAGE_HEIGHT, 44), weather['weather'][0]["description"], font=_get_font(ctx, "details") )
 
 
+##############################################################################
+
 MIN_WIDTH = 80
 SMALL_IMAGE_HEIGHT = 47
 
+class WeatherForecastWidgetSettings(BaseWidgetSettings):
+    widget_class: Literal['WeatherForecastWidget']
+    datasource: str
 
 class WeatherForecastWidget(BaseWidget):
-    def __init__(self, redis, id, config, datasource):
-        super().__init__(redis, id, config, datasource)
-        # Config
-        self.units = config["units"]
-        self.lang = config["locale"].split("_")[0]
-        self.timezone = get_timezone(config["timezone"])
-        self.temperature_format = "{:.0f}°F" if self.units == "imperial" else "{:.0f}°C"
 
-    async def draw(self, ctx):
+    def __init__(self, id: str, settings: WeatherForecastWidgetSettings, datasource: Optional[BaseDatasource] = None):
+        if datasource is None:
+            raise ValueError("datasource must be set")
+        super().__init__(id, settings, datasource)
+        self.temperature_format = "{:.0f}°F" if global_settings.units == "imperial" else "{:.0f}°C"
+        self.timezone = get_timezone(global_settings.timezone)
+
+    async def draw(self, ctx: DrawingContext):
         await super().draw(ctx)
         # Display the weather for the rest of the day
         data = await self.datasource.get_data()
-        items_count = math.floor(self.size[0] / MIN_WIDTH)
+        items_count = math.floor(self.settings.size[0] / MIN_WIDTH)
         for i in range(0, items_count):
-            x = i * self.size[0] / items_count
-            w = self.size[0] / items_count
+            x = i * self.settings.size[0] / items_count
+            w = self.settings.size[0] / items_count
 
             weather = data["hourly"][3*(i+1)]
             logger.debug(f"hourly weather[{i}]: {weather}")
@@ -142,24 +154,30 @@ class WeatherForecastWidget(BaseWidget):
             ctx.draw_text_centered_xy(
                 (x + w / 2, SMALL_IMAGE_HEIGHT + 25),
                 format_time(
-                    date, format="short", locale=self.lang, tzinfo=self.timezone
+                    date, format="short", locale=(global_settings.locale.split("_")[0]), tzinfo=self.timezone
                 ),
                 _get_font(ctx, "next"),
             )
 
+##############################################################################
+
+class WeatherPrecipitationWidgetSettings(BaseWidgetSettings):
+    widget_class: Literal['WeatherPrecipitationWidget']
+    datasource: str
 
 class WeatherPrecipitationWidget(BaseWidget):
-    def __init__(self, redis, id, config, datasources):
-        super().__init__(redis, id, config, datasources)
-        # Config
-        self.lang = config["locale"].split("_")[0]
-        self.timezone = get_timezone(config["timezone"])
 
-    async def draw(self, ctx):
+    def __init__(self, id: str, settings: WeatherPrecipitationWidgetSettings, datasource: Optional[BaseDatasource] = None):
+        if datasource is None:
+            raise ValueError("datasource must be set")
+        super().__init__(id, id, settings, datasource)
+        self.timezone = get_timezone(global_settings.timezone)
+
+    async def draw(self, ctx: DrawingContext):
         await super().draw(ctx)
         onecall = await self.datasource.get_data()
         precipitation = [(datetime.fromtimestamp(f['dt'], pytz.UTC).astimezone(self.timezone), f['precipitation']) for f in onecall['minutely']]
-        fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(self.size[0]/100.0, self.size[1]/100.0), dpi=100)
+        fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(self.settings.size[0]/100.0, self.settings.size[1]/100.0), dpi=100)
         ax.set_ylim(0,10)
         ax.plot(*zip(*precipitation), 'k')
         ax.grid()
@@ -174,21 +192,26 @@ class WeatherPrecipitationWidget(BaseWidget):
         ctx.img.paste(img, self.position)
         plt.close()
 
+##############################################################################
+
+class WeatherTemperatureWidgetSettings(BaseWidgetSettings):
+    widget_class: Literal['WeatherTemperatureWidget']
+    datasource: str
 
 class WeatherTemperatureWidget(BaseWidget):
-    def __init__(self, redis, id, config, datasource):
-        super().__init__(redis, id, config, datasource)
-        # Config
-        self.lang = config["locale"].split("_")[0]
-        self.timezone = get_timezone(config["timezone"])
+    def __init__(self, id: str, settings: WeatherTemperatureWidgetSettings, datasource: Optional[BaseDatasource] = None):
+        if datasource is None:
+            raise ValueError("datasource must be set")
+        super().__init__(id, settings, datasource)
+        self.timezone = get_timezone(global_settings.timezone)
 
-    async def draw(self, ctx):
+    async def draw(self, ctx: DrawingContext):
         await super().draw(ctx)
         onecall = await self.datasource.get_data()
         temp = [(datetime.fromtimestamp(f['dt'], pytz.UTC).astimezone(self.timezone), f['temp']) for f in onecall['hourly']]
         pressure = [(datetime.fromtimestamp(f['dt'], pytz.UTC).astimezone(self.timezone), f['pressure']) for f in onecall['hourly']]
         humidity = [(datetime.fromtimestamp(f['dt'], pytz.UTC).astimezone(self.timezone), f['humidity']) for f in onecall['hourly']]
-        fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(self.size[0]/100.0, self.size[1]/100.0), dpi=100)
+        fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(self.settings.size[0]/100.0, self.settings.size[1]/100.0), dpi=100)
         ax.set_ylim(-10,40)
         ax.plot(*zip(*temp), 'k')
         ax.grid()
@@ -200,5 +223,5 @@ class WeatherTemperatureWidget(BaseWidget):
         fig.subplots_adjust(bottom=0.24)
         fig.canvas.draw()
         img = PIL.Image.frombytes('RGB', fig.canvas.get_width_height(),fig.canvas.tostring_rgb())
-        ctx.img.paste(img, self.position)
+        ctx.img.paste(img, self.settings.position)
         plt.close()

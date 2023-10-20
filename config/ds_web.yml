@@ -1,0 +1,7 @@
+datasource_class: WebScraperDatasource
+max_age_s: 14400
+url: "https://api.corona-zahlen.org/districts/03101"
+find_expressions:
+    - "\"weekIncidence\":(?P<weekIncidence>[0-9]+.\\d)"
+    - "\"deathsPerWeek\":(?P<deathsPerWeek>[0-9]+)"
+    - "\"delta\":{\"cases\":(?P<deltaCases>[0-9]+)"

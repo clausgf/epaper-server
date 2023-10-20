@@ -8,18 +8,21 @@ import datetime
 from babel.dates import format_date, format_time, format_datetime
 from exchangelib import DELEGATE, IMPERSONATION, Account, Credentials
 
+from typing import Any, Dict
+from ..drawingcontext import DrawingContext
+
 
 class ExchangeCalendarWidget(BaseWidget):
 
-    def __init__(self, redis, id, config, datasource):
-        super().__init__(redis, id, config, datasource)
+    def __init__(self, id: str, raw_settings: Dict[str, Any]):
+        super().__init__(id, raw_settings)
         self.timezone = timezone(config['timezone'])
         self.date_format = config['date_format']
         self.date_font = self.config.get('datefont', self.font)
         self.date_colors = self.config.get('datefont', self.colors)
 
 
-    async def draw(self, ctx):
+    async def draw(self, ctx: DrawingContext):
         await super().draw(ctx)
         item_font   = ctx.get_font(self.font[0], self.font[1])
         item_height = self.font[1] + 2

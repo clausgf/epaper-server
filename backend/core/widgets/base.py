@@ -1,29 +1,33 @@
+from pydantic import BaseModel
+from typing import Optional, Tuple, List, Literal
 from loguru import logger
+from ..settings import global_settings
+from ..datasources.base import BaseDatasource
+from ..drawingcontext import DrawingContext
+
+
+class BaseWidgetSettings(BaseModel):
+    widget_class: Literal['BaseWidget']
+    position: Tuple[int, int]
+    size: Tuple[int, int]
+    colors: Optional[List[Tuple[int, int, int]]] = None   # guarateed to be set by Epaper class
+    font: Optional[Tuple[str, int]] = None                # guarateed to be set by Epaper class
+    datasource: Optional[str] = None
 
 
 class BaseWidget:
 
-    def __init__(self, redis, id, config, datasource):
+    def __init__(self, id: str, settings: BaseWidgetSettings, datasource: Optional[BaseDatasource] = None):
         self.id = id
-        self.config = config
+        self.settings = settings
         self.datasource = datasource
-        self.position = tuple(config["position"])
-        self.size = tuple(config["size"])
-        self.widget_class = config.get('class')
-
-        # defaults to be propagated to concrete widgets
-        self.locale = config['locale']
-        self.font = config['font']
-        self.colors = config['colors']
         self.init_background = True
-
-
-    async def draw(self, ctx):
+    
+    async def draw(self, ctx: DrawingContext):
         """Draws the widget using the given drawing context (which is attached to an image) using the datasource."""
-        logger.debug(f"Drawing widget type {self.widget_class}::{self.id}@{self.position} size {self.size}")
-        ctx.origin = self.position
-        p0 = self.position
-        p1 = tuple(sum(x)-1 for x in zip(self.position, self.size))
-        ctx.draw.rectangle([p0, p1], fill=tuple(self.colors[0]))
+        logger.debug(f"Drawing widget type {self.settings.widget_class}::{self.id}@{self.settings.position} size {self.settings.size}")
+        ctx.origin = self.settings.position
+        p0 = self.settings.position
+        p1 = tuple(sum(x)-1 for x in zip(self.settings.position, self.settings.size))
+        ctx.draw.rectangle([p0, p1], fill=tuple(self.settings.colors[0]))
         #ctx.draw.rectangle([p0, p1], outline=(255,0,0))
-

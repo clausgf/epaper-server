@@ -1,31 +1,35 @@
-from pytz import timezone
-from babel.dates import format_date
-from datetime import datetime
+from typing import Literal, Optional
 from loguru import logger
-from .base import BaseWidget
+from ..settings import global_settings
+from ..datasources.base import BaseDatasource
+from ..drawingcontext import DrawingContext
+from .base import BaseWidget, BaseWidgetSettings
+
+
+class TextWidgetSettings(BaseWidgetSettings):
+    widget_class: Literal['TextWidget']
+    format: str
 
 
 class TextWidget(BaseWidget):
 
-    def __init__(self, redis, id, config, datasource):
-        super().__init__(redis, id, config, datasource)
-        self.format = config['format']
+    def __init__(self, id: str, settings: TextWidgetSettings, datasource: Optional[BaseDatasource] = None):
+        super().__init__(id, settings, datasource)
 
-
-    async def draw(self, ctx):
+    async def draw(self, ctx: DrawingContext):
         await super().draw(ctx)
-        font = ctx.get_font(self.font[0], self.font[1])
+        font = ctx.get_font(self.settings.font[0], self.settings.font[1])
 
         if self.datasource:
             data = await self.datasource.get_data()
             logger.debug(f"data: {data}")
             try:
-                text = self.format.format(**data)
+                text = self.settings.format.format(**data)
             except KeyError as ex:
-                logger.error(f"Key not found exception drawing widget {self.widget_class}:{self.id}, datasource {self.datasource.id}: {ex}")
+                logger.error(f"Key not found exception drawing widget {self.settings.widget_class}:{self.id}, datasource {self.datasource.id}: {ex}")
                 text = "?"
         else:
-            text = self.format
+            text = self.settings.format
 
-        position = ( self.size[0]/2, self.size[1]/2 )
-        ctx.draw_text_centered_xy(position, text, font=font, fill=tuple(self.colors[1]))
+        position = ( self.settings.size[0]/2, self.settings.size[1]/2 )
+        ctx.draw_text_centered_xy(position, text, font=font, fill=tuple(self.settings.colors[1]))

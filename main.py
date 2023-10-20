@@ -5,17 +5,13 @@ from uvicorn import Config, Server
 from loguru import logger
 
 
-HOST = os.environ.get("HOST", "0.0.0.0")
-PORT = int(os.environ.get("PORT", 8000))
-DEBUG = True if os.environ.get("DEBUG", "1") == "1" else False
-LOG_LEVEL = logging.getLevelName(os.environ.get("LOG_LEVEL", "DEBUG"))
-JSON_LOGS = True if os.environ.get("JSON_LOGS", "0") == "1" else False
-
-
-# Logging configuration from
-# https://pawamoy.github.io/posts/unify-logging-for-a-gunicorn-uvicorn-app/#uvicorn-only-version
 class InterceptHandler(logging.Handler):
-    def emit(self, record):
+    """
+    Intercept standard logging messages toward Loguru
+    See https://loguru.readthedocs.io/en/stable/overview.html#entirely-compatible-with-standard-logging
+    """
+
+    def emit(self, record: logging.LogRecord):
         # Get corresponding Loguru level if it exists
         try:
             level = logger.level(record.levelname).name
@@ -28,7 +24,48 @@ class InterceptHandler(logging.Handler):
             frame = frame.f_back
             depth += 1
 
-        logger.opt(depth=depth, exception=record.exc_info).log(level, record.getMessage())
+        logger.opt(depth=depth, exception=record.exc_info).log(
+            level, record.getMessage()
+        )
+
+
+def init_logging(log_level):
+    """
+    Replaces logging handlers with a handler for using the custom handler.
+    Inspired by https://gist.github.com/nkhitrov/a3e31cfcc1b19cba8e1b626276148c49
+    """
+
+    # disable handlers for specific uvicorn loggers to redirect their output to the default uvicorn logger
+    # works with uvicorn==0.11.6
+    loggers = (
+        logging.getLogger(name)
+        for name in logging.root.manager.loggerDict
+        if name.startswith("uvicorn.")
+    )
+    for uvicorn_logger in loggers:
+        uvicorn_logger.handlers = []
+
+    # change handler for default uvicorn logger
+    intercept_handler = InterceptHandler()
+    logging.getLogger("uvicorn").handlers = [intercept_handler]
+
+    # set logs output, level and format
+    logger.configure(
+        handlers=[{"sink": sys.stdout, "level": LOG_LEVEL, "format": format_record}]
+    )
+
+    # old code - # setup logging
+    # logging.root.handlers = [InterceptHandler()]
+    # for name in logging.root.manager.loggerDict.keys():
+    #     logging.getLogger(name).handlers = []
+    #     logging.getLogger(name).propagate = True
+    # logger.configure(handlers=[{
+    #     "sink": sys.stdout, 
+    #     "colorize": (not JSON_LOGS), 
+    #     "serialize": JSON_LOGS,
+    #     "level": LOG_LEVEL,
+    # }])
+    logging.root.setLevel(LOG_LEVEL)
 
 
 if __name__ == "__main__":
@@ -43,18 +80,4 @@ if __name__ == "__main__":
             log_level=LOG_LEVEL,
         )
     )
-
-    # setup logging
-    logging.root.handlers = [InterceptHandler()]
-    logging.root.setLevel(LOG_LEVEL)
-    for name in logging.root.manager.loggerDict.keys():
-        logging.getLogger(name).handlers = []
-        logging.getLogger(name).propagate = True
-    logger.configure(handlers=[{
-        "sink": sys.stdout, 
-        "colorize": (not JSON_LOGS), 
-        "serialize": JSON_LOGS,
-        "level": LOG_LEVEL,
-    }])
-
     server.run()

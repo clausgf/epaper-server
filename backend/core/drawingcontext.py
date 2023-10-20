@@ -1,7 +1,6 @@
 import os
 import math
 from loguru import logger
-
 from PIL import Image, ImageFont, ImageDraw, ImageColor
 
 
@@ -79,12 +78,12 @@ class DrawingContext:
 
 
     def textsize(self, text, font):
-        width, height = self.draw.textsize(text, font)
+        _, _, width, height = self.draw.textbbox((0,0), text, font)
         return width, height
 
 
     def draw_text_centered_xy(self, xy, text, font, **params):
-        width, height = self.draw.textsize(text, font)
+        _, _, width, height = self.draw.textbbox((0,0), text, font)
         x,  y  = math.floor(xy[0] - width/2), math.floor(xy[1] - height/2)
         return self.draw_text_xy( (x, y), text, font, **params)
 
@@ -93,7 +92,7 @@ class DrawingContext:
         params['fill'] = params.get( 'fill', DrawingContext.FOREGROUND )
         x, y = self.origin[0] + xy[0], self.origin[1] + xy[1]
 
-        width, height = self.draw.textsize(text, font)
+        _, _, width, height = self.draw.textbbox((0,0), text, font)
         mask = Image.new("1", (width, height), color=0)
         draw = ImageDraw.Draw(mask)
         draw.text((0, 0), text, font=font, fill=1)

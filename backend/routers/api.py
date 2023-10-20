@@ -85,7 +85,7 @@ async def get_display_image(request: Request, id: str, response: Response, if_no
         raise HTTPException(status_code=404, detail="Display/alias not found")
 
     # collect new response header fields
-    version = await display.get_version()
+    etag = await display.get_version()
     next_client_update = await display.get_next_client_update()
     if next_client_update:
         now = datetime.datetime.now(datetime.timezone.utc)
@@ -94,13 +94,13 @@ async def get_display_image(request: Request, id: str, response: Response, if_no
     else:
         max_age = MINIMUM_WAITING_TIME
     headers = {
-        "ETag": version, 
+        "ETag": etag, 
         "Cache-Control": f"max-age={max_age}"
-        # "Content-Disposition": f'inline; filename="{version}.png"'
+        # "Content-Disposition": f'inline; filename="{etag}.png"'
     }
 
     # Return 304 if content did not change
-    if if_none_match != None and if_none_match == version:
+    if if_none_match != None and if_none_match == etag:
         return Response("", status.HTTP_304_NOT_MODIFIED, headers=headers)
 
     # return response
