@@ -4,18 +4,19 @@ import json
 from loguru import logger
 import os
 
+from ..core.settings import global_settings
+from ..core.epaper import Epaper
+
 import uvicorn
 from fastapi import APIRouter, Request, Response, status, Header, HTTPException, Path
 from fastapi.responses import FileResponse
 router = APIRouter()
 
-MINIMUM_WAITING_TIME = 30
-
 
 # *** Display management *****************************************************
 
-def get_display_by_id(context, id):
-    display = context.displays.get(id, None)
+def get_display_by_id(context, id: str) -> Optional[Epaper]:
+    display = context.epapers.get(id, None)
     if display is None:
         alias_id = context.aliases.get(id, None)
         display = context.displays.get(alias_id, None)
@@ -29,7 +30,7 @@ def get_display_by_id(context, id):
 )
 async def get_displays(request: Request):
     ctx = request.app.context
-    names = list(ctx.displays.keys()) + list(ctx.aliases.keys())
+    names = list(ctx.epapers.keys()) + list(ctx.aliases.keys())
     links = { name: request.url_for("get_display", **{"id": name}) for name in names }
     return { "links": links }
 
@@ -58,11 +59,11 @@ async def get_display(
     if display is None:
         raise HTTPException(status_code=404, detail="Display/alias not found")
 
-    display_kv = { key: display.__dict__[key] for key in ["id", "aliases", "size", "bits_per_pixel", "update_interval", "client_update_delay", "rotation"]}
+    display_kv = display.settings.model_dump(exclude=["widgets", "font"])
     display_kv.update({
         "version": await display.get_version(),
         "last_update": await display.get_last_update(),
-        "next_client_update": await display.get_next_client_update()
+        "next_client_update": await display.get_next_client_update_at()
     })
     display_kv.update({
         "links": {
@@ -86,13 +87,13 @@ async def get_display_image(request: Request, id: str, response: Response, if_no
 
     # collect new response header fields
     etag = await display.get_version()
-    next_client_update = await display.get_next_client_update()
+    next_client_update = await display.get_next_client_update_at()
     if next_client_update:
         now = datetime.datetime.now(datetime.timezone.utc)
         seconds_till_update = (next_client_update - now).total_seconds()
-        max_age = max(MINIMUM_WAITING_TIME, round(seconds_till_update))
+        max_age = max(request.app.context.global_settings.minimum_client_update_interval_s, round(seconds_till_update))
     else:
-        max_age = MINIMUM_WAITING_TIME
+        max_age = request.app.context.global_settings.minimum_client_update_interval_s
     headers = {
         "ETag": etag, 
         "Cache-Control": f"max-age={max_age}"

@@ -23,10 +23,15 @@ class RedisKeyValueStore:
         self.instance_key = instance_key
         self.base_key = f"{self.class_key}:{self.instance_key}"
 
+    async def get_kv_binary(self, subkey: str):
+        key = f"{self.base_key}:{subkey}"
+        value = await self.redis.get(key)
+        return value
+
     async def get_kv(self, subkey: str):
         key = f"{self.base_key}:{subkey}"
-        value = await self.redis.get(key) # TODO: encoding?
-        return value
+        value = await self.redis.get(key)
+        return value.decode("utf-8") if value else None
 
     async def set_kv_from_dict(self, subkeys_values_dict: Dict[str, str]):
         for subkey, value in subkeys_values_dict.items():

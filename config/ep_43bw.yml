@@ -3,6 +3,7 @@ bits_per_pixel: 1
 colors: [[255,255,255], [0,0,0]]
 update_interval_s: 1800
 font: ["Roboto-Regular.ttf", 16]
+aliases: ["e32-40f77612cfa4", "A4CF1276F740"]
 widgets:
 - widget_class: DateWidget
   position: [0, 10]
@@ -17,11 +18,11 @@ widgets:
   position: [0, 130]
   size: [400, 84]
   datasource: ds_weather_bs
-- widget_class: TextWidget
-  position: [310, 50]
-  size: [70, 16]
-  format: "Testtext"
-  font: ["Ubuntu-Regular.ttf", 14]
+# - widget_class: TextWidget
+#   position: [310, 50]
+#   size: [70, 16]
+#   format: "Testtext"
+#   font: ["Ubuntu-Regular.ttf", 14]
 - widget_class: WeatherTemperatureWidget
   position: [0, 220]
   size: [400, 80]

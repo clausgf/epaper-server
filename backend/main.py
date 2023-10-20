@@ -16,6 +16,7 @@ from .core.datasources.base import BaseDatasource
 from .routers import router
 from .core.utils import RedisKeyValueStore
 
+##############################################################################
 
 class InterceptHandler(logging.Handler):
     """
@@ -40,6 +41,7 @@ class InterceptHandler(logging.Handler):
             level, record.getMessage()
         )
 
+##############################################################################
 
 def init_logging(log_level):
     """
@@ -80,22 +82,21 @@ def init_logging(log_level):
     # }])
     logging.root.setLevel(log_level)
 
+##############################################################################
 
 class Context:
     count = 0
 
-    def __init__(self, config_fn, redis):
-        self.datasources = {}
-        self.displays = {}
-        self.aliases = {}
+    def __init__(self, global_settings, redis, datasources, aliases, epapers):
+        self.global_settings = global_settings
         self.redis = redis
+        self.datasources = datasources
+        self.aliases = aliases
+        self.epapers = epapers
 
-        for alias_id, alias_display_id in config["aliases"].items():
-            self.displays[alias_display_id].aliases.append(alias_id)
-            self.aliases[alias_id] = alias_display_id
+##############################################################################
 
-
-def create_datasources(glob_pattern: str) -> Dict[str, BaseDatasource]:
+def create_datasources(glob_pattern: str, redis) -> Dict[str, BaseDatasource]:
     logger.info(f"Creating datasources pattern={glob_pattern}")
     ds = {}
     filenames = glob.glob(glob_pattern)
@@ -113,13 +114,13 @@ def create_datasources(glob_pattern: str) -> Dict[str, BaseDatasource]:
             logger.error(f"Unknown datasource class {ds_class_name}")
             continue
 
-        kv_store = RedisKeyValueStore(app.redis, ds_class_name)
+        kv_store = RedisKeyValueStore(redis, ds_class_name)
         ds_instance = ds_class(fn, kv_store)
         ds[ds_instance.id] = ds_instance
     return ds
 
 
-def create_epapers(glob_pattern: str) -> Dict[str, Epaper]:
+def create_epapers(glob_pattern: str, redis, datasources, aliases) -> Dict[str, Epaper]:
     logger.info(f"Creating epapers pattern={glob_pattern}")
     eps = {}
     filenames = glob.glob(glob_pattern)
@@ -131,23 +132,24 @@ def create_epapers(glob_pattern: str) -> Dict[str, Epaper]:
             logger.error(f"Error loading epaper config from {fn}: {e}")
             continue
 
-        kv_store = RedisKeyValueStore(app.redis, 'Epaper')
-        epaper_instance = Epaper(fn, kv_store, app.datasources)
+        kv_store = RedisKeyValueStore(redis, 'Epaper')
+        epaper_instance = Epaper(fn, kv_store, datasources, aliases)
         eps[epaper_instance.id] = epaper_instance
     return eps
 
 
 async def cyclic_func():
     while True:
-        if app is not None and hasattr(app, 'epapers') and app.epapers:
-            logger.info(f"cyclic_func executing for {app.epapers.keys()}")
-            for epaper_id in app.epapers:
+        if app is not None and hasattr(app, 'context') and app.context:
+            #logger.info(f"cyclic_func executing for: {app.context.epapers.keys()}")
+            for epaper_id in app.context.epapers:
                 try:
-                    await app.epapers[epaper_id].update_if_needed()
+                    await app.context.epapers[epaper_id].update_if_needed()
                 except Exception as e:
                     logger.exception(f"Error updating epaper {epaper_id}: {e}", exception=e)
         await asyncio.sleep(global_settings.cyclic_interval_s)
 
+##############################################################################
 
 init_logging(global_settings.log_level)
 app = FastAPI(title='EPaper-Server')
@@ -157,6 +159,8 @@ asyncio.ensure_future(cyclic_func())
 @app.on_event('startup')
 async def startup_event():
     logger.info("Starting up")
-    app.redis = await redis.from_url(global_settings.redis_url, encoding='utf-8', decode_responses=True)
-    app.datasources = create_datasources(global_settings.datasource_config_file_pattern)
-    app.epapers = create_epapers(global_settings.epaper_config_file_pattern)
+    _redis = await redis.from_url(global_settings.redis_url) # encoding='utf-8' decode_responses=True
+    _datasources = create_datasources(global_settings.datasource_config_file_pattern, _redis)
+    _aliases = {}
+    _epapers = create_epapers(global_settings.epaper_config_file_pattern, _redis, _datasources, _aliases)
+    app.context = Context(global_settings, _redis, _datasources, _aliases, _epapers)

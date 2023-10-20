@@ -19,6 +19,7 @@ class Settings(BaseSettings):
 
     log_level: Literal['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'] = 'INFO'
     cyclic_interval_s: int = 10
+    minimum_client_update_interval_s: int = 30
 
 
 global_settings = Settings()

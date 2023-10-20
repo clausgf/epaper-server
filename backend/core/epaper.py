@@ -40,12 +40,13 @@ class EpaperSettings(BaseModel):
 
 class Epaper:
 
-    def __init__(self, settings_filename: str, kv_store: RedisKeyValueStore, datasources: Dict[str, BaseDatasource]):
+    def __init__(self, settings_filename: str, kv_store: RedisKeyValueStore, datasources: Dict[str, BaseDatasource], aliases: Dict[str, str]):
         self.id = os.path.splitext(os.path.basename(settings_filename))[0]
         self.settings_filename = settings_filename
         self.kv_store = kv_store
         self.kv_store.set_instance_key(self.id)
         self.datasources = datasources
+        self.aliases = aliases
         self.debug = False  # True
         self.load_settings()
 
@@ -73,14 +74,15 @@ class Epaper:
             widget_obj   = widget_class(id, widget_config, _datasource)
             self.widgets.append(widget_obj)
         
-        # update configuration shortcuts
+        # update aliases and configuration shortcuts
+        self.aliases.update({ alias: self.id for alias in self.settings.aliases })
         self.update_interval     = datetime.timedelta(seconds=self.settings.update_interval_s)
         self.client_update_delay = datetime.timedelta(seconds=self.settings.client_update_delay_s)
         logger.info(f"Configured epaper id={self.id} settings=({self.settings})")
 
 
     async def get_image(self):
-        image_data = await self.kv_store.get_kv("image")  # encoding might be an issue here
+        image_data = await self.kv_store.get_kv_binary("image")  # encoding might be an issue here
         image = Image.open(io.BytesIO(image_data)) if image_data else None
         return image
 
