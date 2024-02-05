@@ -20,7 +20,7 @@ defusedxml==0.7.1
 dill==0.3.7
 dnspython==2.4.2
 exchangelib==5.1.0
-fastapi==0.103.2
+fastapi==0.109.1
 fonttools==4.43.1
 frozenlist==1.4.0
 h11==0.14.0
